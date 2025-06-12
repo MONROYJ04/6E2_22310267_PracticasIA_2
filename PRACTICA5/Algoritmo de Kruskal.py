@@ -45,7 +45,7 @@ class SimuladorKruskal:
             if nodo in conjunto:
                 return conjunto
         return None
-    
+
     def _unir_conjuntos(self, conjunto_a, conjunto_b):
         """
         Une dos conjuntos disjuntos.
@@ -54,14 +54,26 @@ class SimuladorKruskal:
             conjunto_a (set): Primer conjunto
             conjunto_b (set): Segundo conjunto
         """
-        # Encuentra los representantes de cada conjunto
-        rep_a = next(iter(conjunto_a))
-        rep_b = next(iter(conjunto_b))
-        
-        # Une los conjuntos bajo un mismo representante
-        self.conjuntos_disjuntos[rep_a].update(self.conjuntos_disjuntos[rep_b])
+        # Encuentra los representantes actuales de cada conjunto
+        rep_a = None
+        rep_b = None
+        for rep, conj in self.conjuntos_disjuntos.items():
+            if conj is conjunto_a:
+                rep_a = rep
+            if conj is conjunto_b:
+                rep_b = rep
+        if rep_a is None or rep_b is None or rep_a == rep_b:
+            return  # Ya están unidos o algo salió mal
+
+        # Fusiona los conjuntos y actualiza el representante
+        nuevo_conjunto = conjunto_a.union(conjunto_b)
+        # Elimina ambos representantes antiguos
+        del self.conjuntos_disjuntos[rep_a]
         del self.conjuntos_disjuntos[rep_b]
-    
+        # Asigna el nuevo conjunto a un nuevo representante (elige uno cualquiera)
+        nuevo_rep = next(iter(nuevo_conjunto))
+        self.conjuntos_disjuntos[nuevo_rep] = nuevo_conjunto
+
     def mostrar_paso(self, arista_actual=None, agregada=False, razon=None):
         """
         Muestra en consola la información del paso actual del algoritmo.
@@ -115,19 +127,18 @@ class SimuladorKruskal:
             nodo_a, nodo_b, peso = arista
             conjunto_a = self._encontrar_conjunto(nodo_a)
             conjunto_b = self._encontrar_conjunto(nodo_b)
-            
-            # Si los nodos están en conjuntos diferentes, no forman ciclo
-            if conjunto_a != conjunto_b:
-                self.arbol.append(arista)
-                self.peso_total += peso
-                self._unir_conjuntos(conjunto_a, conjunto_b)
-                self.mostrar_paso(arista, True, "No forma ciclo")
-            else:
+            # Protege contra conjuntos ya fusionados/eliminados
+            if conjunto_a is None or conjunto_b is None or conjunto_a == conjunto_b:
                 self.mostrar_paso(arista, False, "Formaría ciclo")
-            
+                if visualizar:
+                    self.actualizar_visualizacion(arista, True)
+                continue
+            self.arbol.append(arista)
+            self.peso_total += peso
+            self._unir_conjuntos(conjunto_a, conjunto_b)
+            self.mostrar_paso(arista, True, "No forma ciclo")
             if visualizar:
-                self.actualizar_visualizacion(arista, conjunto_a == conjunto_b)
-            
+                self.actualizar_visualizacion(arista, False)
             # Terminamos cuando todos los nodos están conectados
             if len(self.conjuntos_disjuntos) == 1:
                 break
@@ -240,10 +251,10 @@ def main():
     
     # Preguntar por tipo de árbol (mínimo o máximo)
     tipo = input("¿Calcular árbol de expansión mínima (m) o máxima (M)? ").lower()
-    while tipo not in ['m', 'M']:
+    while tipo not in ['m', 'M', 'minima', 'máxima', 'minima', 'maxima']:
         print("Opción inválida. Intente nuevamente.")
         tipo = input("¿Calcular árbol de expansión mínima (m) o máxima (M)? ").lower()
-    minimo = tipo == 'm'
+    minimo = tipo.startswith('m')
     
     # Crear y ejecutar el simulador
     simulador = SimuladorKruskal(grafo_ejemplo)
